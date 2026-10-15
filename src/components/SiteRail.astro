@@ -1,0 +1,135 @@
+---
+/**
+ * 左栏内容：站点导航。
+ *
+ * 只渲染链接列表，不渲染 `<aside>` —— 外层容器与 sticky 定位属于 `Base.astro`
+ * 的三栏外壳。全站渲染，不只是文章页；窄屏时左栏整块改成贴顶横栏，菜单折进
+ * 汉堡控制的面板；桌面和移动端共用整行左对齐的导航项。
+ *
+ * 当前页高亮：菜单项的 URL 自带语言前缀（en 菜单写 `/en/posts`），
+ * 所以两边都过一遍 `stripLocale` 再比，`/en/posts` 与 `/posts` 就能对上。
+ */
+import { stripLocale } from "../i18n/ui";
+
+interface MenuItem {
+	label: string;
+	url: string;
+	target?: string | null;
+}
+
+interface Props {
+	items: MenuItem[];
+	/** 当前请求路径，用于高亮。 */
+	pathname: string;
+}
+
+const { items, pathname } = Astro.props;
+
+const current = stripLocale(pathname);
+// 品牌身份链接已返回首页，主导航不重复显示默认语言或语言前缀下的根路径项。
+const visibleItems = items.filter((item) => stripLocale(item.url) !== "/");
+
+/** `/` 只做精确匹配，否则所有路径都会命中首页。 */
+function isCurrent(url: string): boolean {
+	const target = stripLocale(url);
+	if (target === "/") return current === "/";
+	return current === target || current.startsWith(`${target}/`);
+}
+---
+
+<div class="rail-content">
+	<nav class="rail-nav">
+		<ul class="rail-nav-list">
+			{
+				visibleItems.map((item) => (
+					<li>
+						<a
+							href={item.url}
+							target={item.target}
+							rel={item.target === "_blank" ? "noopener noreferrer" : undefined}
+							class:list={["rail-nav-link", { "is-current": isCurrent(item.url) }]}
+							aria-current={isCurrent(item.url) ? "page" : undefined}
+						>
+							{item.label}
+						</a>
+					</li>
+				))
+			}
+		</ul>
+	</nav>
+</div>
+
+<style>
+	/* 侧栏导航采用整行点击区域，与品牌、工具组保持左侧共同起点。 */
+	.rail-content {
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		width: 100%;
+		text-align: left;
+	}
+
+	.rail-nav-list {
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-1);
+		width: 100%;
+	}
+
+	.rail-nav-link {
+		display: flex;
+		align-items: center;
+		width: 100%;
+		padding: var(--spacing-2) var(--spacing-3);
+		border-radius: var(--radius);
+		font-size: var(--font-size-sm);
+		line-height: var(--leading-snug);
+		color: var(--color-text-secondary);
+		text-decoration: none;
+		position: relative;
+		transition:
+			color var(--transition-fast),
+			background var(--transition-fast);
+	}
+
+	.rail-nav-link:hover,
+	.rail-nav-link:focus-visible {
+		color: var(--color-text);
+		background: var(--color-surface);
+		text-decoration: none;
+	}
+
+	.rail-nav-link:focus-visible {
+		outline: 2px solid var(--color-brand);
+		outline-offset: 2px;
+	}
+
+	.rail-nav-link.is-current {
+		color: var(--color-brand);
+		background: transparent;
+		font-weight: 600;
+	}
+
+	.rail-nav-link.is-current::before {
+		content: "";
+		position: absolute;
+		left: 0;
+		top: 6px;
+		bottom: 6px;
+		width: 3px;
+		border-radius: 2px;
+		background: var(--color-brand);
+	}
+
+	@media (max-width: 999px) {
+		.rail-nav-list {
+			gap: var(--spacing-1);
+		}
+
+		.rail-nav-link {
+			padding: var(--spacing-2) var(--spacing-3);
+			font-size: var(--font-size-base);
+		}
+	}
+</style>

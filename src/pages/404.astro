@@ -1,0 +1,38 @@
+---
+import Base from "../layouts/Base.astro";
+import { getLang, localePath, useTranslations } from "../i18n/ui";
+
+// 404 页没有 [locale] 路由，语言从请求路径推断（/en/xxx → en）。
+const lang = getLang(Astro);
+const t = useTranslations(lang);
+---
+
+<Base lang={lang} title={t("notFound.title")}>
+	<div class="not-found">
+		<h1>404</h1>
+		<p>{t("notFound.description")}</p>
+		<a href={localePath(lang, "/")}>{t("notFound.backHome")}</a>
+	</div>
+</Base>
+
+<style>
+	.not-found {
+		text-align: center;
+		padding: var(--spacing-24) var(--spacing-6);
+	}
+
+	.not-found h1 {
+		font-size: var(--font-size-5xl);
+		margin-bottom: var(--spacing-2);
+		color: var(--color-border);
+	}
+
+	.not-found p {
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-6);
+	}
+
+	.not-found a {
+		color: var(--color-text);
+	}
+</style>

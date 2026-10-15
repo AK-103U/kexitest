@@ -1,0 +1,576 @@
+---
+import {
+	getEmDashEntry,
+	getSeoMeta,
+	decodeSlug,
+	getSiteSettings,
+} from "emdash";
+import { Image, PortableText } from "emdash/ui";
+import { Comments, CommentForm } from "emdash/ui/comments";
+import Base from "../../layouts/Base.astro";
+import CodeBlock from "../../components/CodeBlock.astro";
+import TableOfContents from "../../components/TableOfContents.astro";
+import ScrollNav from "../../components/ScrollNav.astro";
+import { getReadingTime } from "../../utils/reading-time";
+import { resolveEntryBylines, readEntryLocale } from "../../utils/bylines";
+import { resolveBlogSiteIdentity } from "../../utils/site-identity";
+import { avatarUrl } from "../../utils/media";
+import { siteConfig } from "../../i18n/config";
+import { formatDate, localePath, pageLang, useTranslations } from "../../i18n/ui";
+
+interface Props {
+	locale?: string;
+}
+
+const lang = pageLang(Astro.props, Astro);
+const t = useTranslations(lang);
+
+const slug = decodeSlug(Astro.params.slug);
+
+if (!slug) {
+	return Astro.redirect("/404");
+}
+
+// 详情页回退：EmDash 的 fallback 配置不允许把默认语言当 key，
+// 所以 en → zh 由 getEmDashEntry 自动完成；zh → en 需要在这里手动补一次查询。
+const primary = await getEmDashEntry("posts", slug, { locale: lang });
+const needsManualFallback = !primary.entry && lang === siteConfig.defaultLocale;
+const secondary = needsManualFallback
+	? await getEmDashEntry("posts", slug, { locale: "en" })
+	: null;
+
+const post = primary.entry ?? secondary?.entry ?? null;
+
+if (!post) {
+	return Astro.redirect("/404");
+}
+
+const cacheHint =
+	post === primary.entry
+		? primary.cacheHint
+		: (secondary?.cacheHint ?? primary.cacheHint);
+/** 非空表示当前显示的是另一语言的内容，用于渲染提示条。 */
+const fallbackLocale =
+	post === primary.entry ? primary.fallbackLocale : "en";
+
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
+// Get featured image URL for OG fallback
+// The image may have src (external) or meta.storageKey (local)
+function getImageUrl(img: unknown): string | undefined {
+	if (!img || typeof img !== "object") return undefined;
+	const image = img as Record<string, unknown>;
+	// Check for direct src
+	if (typeof image.src === "string" && image.src) {
+		return image.src.startsWith("http")
+			? image.src
+			: `${Astro.url.origin}${image.src}`;
+	}
+	// Build from storageKey for local images
+	const meta = image.meta as Record<string, unknown> | undefined;
+	const storageKey =
+		(typeof meta?.storageKey === "string" ? meta.storageKey : undefined) ||
+		(typeof image.id === "string" ? image.id : undefined);
+	if (storageKey) {
+		return `${Astro.url.origin}/_emdash/api/media/file/${storageKey}`;
+	}
+	return undefined;
+}
+const featuredImageUrl = getImageUrl(post.data.featured_image);
+const { siteTitle } = resolveBlogSiteIdentity(await getSiteSettings());
+
+// Generate SEO meta from content
+const seo = getSeoMeta(post, {
+	siteTitle,
+	siteUrl: Astro.url.origin,
+	path: Astro.url.pathname.replace(/\/$/, ""),
+	defaultOgImage: featuredImageUrl,
+});
+
+// Bylines are already hydrated by getEmDashEntry。非默认语言下若缺少该
+// 署名的语言行，hydrate 会整条丢弃；这里按内容行自身语言做一次回退，
+// 只补人名与头像（见 utils/bylines.ts）。
+const bylines =
+	(
+		await resolveEntryBylines("posts", [
+			{
+				id: post.data.id,
+				locale: readEntryLocale(post.data, lang),
+				bylines: post.data.bylines ?? [],
+			},
+		])
+	).get(post.data.id) ?? [];
+
+// Get reading time
+const readingTime = getReadingTime(post.data.content);
+
+// This post's tags are already hydrated onto the entry by getEmDashEntry —
+// no extra query needed.
+const tags = post.data.terms?.tag ?? [];
+
+const publishDate = post.data.publishedAt
+	? formatDate(post.data.publishedAt, lang, "long")
+	: null;
+
+const commentsLabels = {
+	heading: (count: number) =>
+		count === 0
+			? t("comments.headingNone")
+			: count === 1
+				? t("comments.headingOne", { n: count })
+				: t("comments.heading", { n: count }),
+	member: t("comments.member"),
+	like: t("comments.like"),
+};
+
+const commentFormLabels = {
+	name: t("comments.name"),
+	email: t("comments.email"),
+	comment: t("comments.comment"),
+	submit: t("comments.submit"),
+	submitting: t("comments.submitting"),
+	published: t("comments.published"),
+	pending: t("comments.pending"),
+	networkError: t("comments.networkError"),
+};
+---
+
+<Base
+	lang={lang}
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description}
+	image={seo.ogImage}
+	canonical={seo.canonical}
+	robots={seo.robots}
+	type="article"
+	publishedTime={post.data.publishedAt?.toISOString() ?? null}
+	modifiedTime={post.data.updatedAt.toISOString()}
+	content={{ collection: "posts", id: post.data.id, slug }}
+>
+	<article class="article">
+		{/* Hero：收进中栏，位于标题上方 */}
+		{
+			post.data.featured_image && (
+				<div class="article-hero" {...post.edit.featured_image}>
+					<Image image={post.data.featured_image} />
+				</div>
+			)
+		}
+
+		<header class="article-header">
+			<h1 class="article-title" {...post.edit.title}>{post.data.title}</h1>
+
+			{/* 标题下方一行 meta：作者、日期、时长、标签 */}
+			<div class="meta-sticky">
+				{
+					bylines.length > 0 && (
+						<div class="meta-block byline-block">
+							<div class="bylines">
+								{bylines.map((credit) => (
+									<div class="byline">
+										{credit.byline.avatarStorageKey && (
+											<img
+												src={avatarUrl(credit.byline.avatarStorageKey, 96)}
+												alt={credit.byline.displayName}
+												class="byline-avatar"
+											/>
+										)}
+										<div class="byline-info">
+											<span class="byline-name">
+												{credit.byline.displayName}
+											</span>
+											{credit.roleLabel && (
+												<span class="byline-role">{credit.roleLabel}</span>
+											)}
+										</div>
+									</div>
+								))}
+							</div>
+						</div>
+					)
+				}
+				{
+					publishDate && (
+						<div class="meta-block">
+							{/* Tabler Icons `calendar-time`（MIT），内联以免引依赖 */}
+							<svg
+								class="meta-icon"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+							>
+								<path d="M11.795 21h-6.795a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v4"
+								></path>
+								<path d="M14 18a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"></path>
+								<path d="M15 3v4"></path>
+								<path d="M7 3v4"></path>
+								<path d="M3 11h16"></path>
+								<path d="M18 16.496v1.504l1 1"></path>
+							</svg>
+							<time class="meta-value">{publishDate}</time>
+						</div>
+					)
+				}
+				<div class="meta-block">
+					{/* Tabler Icons `clock`（MIT） */}
+					<svg
+						class="meta-icon"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path>
+						<path d="M12 7v5l3 3"></path>
+					</svg>
+					<span class="meta-value">{t("post.min", { n: readingTime })}</span>
+				</div>
+				{
+					tags.length > 0 && (
+						<div class="meta-block">
+							<div class="meta-tags">
+								{tags.map((tag) => (
+									<a
+										href={localePath(lang, `/tag/${tag.slug}`)}
+										class="meta-tag"
+									>
+										{tag.label}
+									</a>
+								))}
+							</div>
+						</div>
+					)
+				}
+			</div>
+			{
+				fallbackLocale && (
+					<p class="article-fallback-notice">{t("post.translatedNotice")}</p>
+				)
+			}
+		</header>
+
+		<div class="article-content">
+			<PortableText
+				value={post.data.content}
+				components={{ type: { code: CodeBlock } }}
+			/>
+		</div>
+
+		<div class="article-comments">
+			<Comments
+				collection="posts"
+				contentId={post.data.id}
+				threaded
+				locale={lang}
+				labels={commentsLabels}
+			/>
+			<CommentForm
+				collection="posts"
+				contentId={post.data.id}
+				labels={commentFormLabels}
+			/>
+		</div>
+	</article>
+
+	<TableOfContents
+		slot="rail"
+		title={t("post.onThisPage")}
+		label={t("post.toc")}
+	/>
+
+	<ScrollNav
+		source=".article-content"
+		label={t("post.toc")}
+	/>
+</Base>
+
+<style>
+	/* 列宽与位置由 Base.astro 的三栏外壳接管，这里只管文章自己的排版。 */
+	.article {
+		min-width: 0;
+	}
+
+	/* Hero：中栏内的配图 */
+	.article-hero {
+		margin: 0 0 var(--spacing-12);
+		border-radius: var(--radius-lg);
+		overflow: hidden;
+		background: var(--color-surface);
+	}
+
+	.article-hero img {
+		width: 100%;
+		height: auto;
+		max-height: 420px;
+		object-fit: cover;
+	}
+
+	/*
+	 * 标题下方的一行 meta。名字沿用原来的，但已经不在侧栏了，
+	 * 所以没有 sticky，改成横向排列。
+	 */
+	.meta-sticky {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		column-gap: var(--spacing-4);
+		row-gap: var(--spacing-2);
+		margin-bottom: var(--spacing-6);
+	}
+
+	.meta-block {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-2);
+		min-width: 0;
+	}
+
+	.meta-icon {
+		width: 15px;
+		height: 15px;
+		flex-shrink: 0;
+		color: var(--color-muted);
+	}
+
+	.meta-value {
+		font-size: var(--font-size-sm);
+		color: var(--color-text-secondary);
+	}
+
+	.meta-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-1);
+	}
+
+	.meta-tag {
+		display: inline-block;
+		padding: var(--tag-padding-y) var(--spacing-2);
+		font-size: var(--font-size-xs);
+		color: var(--color-text-secondary);
+		background: var(--color-surface);
+		border-radius: var(--radius);
+		text-decoration: none;
+		transition:
+			color var(--transition-fast),
+			background var(--transition-fast);
+	}
+
+	.meta-tag:hover {
+		color: var(--color-text);
+		background: var(--color-border);
+	}
+
+	/* Byline styles —— meta 行里是横排，不再是从前左栏的竖排 */
+	.bylines {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--spacing-3);
+	}
+
+	.byline {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-2);
+	}
+
+	.byline-avatar {
+		width: var(--avatar-size-sm);
+		height: var(--avatar-size-sm);
+		border-radius: 50%;
+		object-fit: contain;
+	}
+
+	.byline-info {
+		display: flex;
+		align-items: baseline;
+		gap: var(--spacing-1);
+	}
+
+	.byline-name {
+		font-size: var(--font-size-sm);
+		font-weight: 500;
+		color: var(--color-text-secondary);
+	}
+
+	.byline-role {
+		font-size: var(--font-size-xs);
+		color: var(--color-muted);
+	}
+
+	/* Main content column */
+	.article-header {
+		margin-bottom: var(--spacing-10);
+	}
+
+	.article-title {
+		font-size: clamp(2rem, 5vw, var(--font-size-5xl));
+		font-weight: var(--font-weight-display);
+		line-height: var(--leading-tight);
+		letter-spacing: var(--tracking-tight);
+		margin-bottom: var(--spacing-4);
+	}
+
+
+	/* 当前显示的是回退语言的原文时，给出提示 */
+	.article-fallback-notice {
+		margin-top: var(--spacing-4);
+		padding: var(--spacing-3) var(--spacing-4);
+		border-left: 3px solid var(--color-brand);
+		background: var(--color-bg-subtle);
+		border-radius: 0 var(--radius) var(--radius) 0;
+		font-size: var(--font-size-sm);
+		color: var(--color-muted);
+	}
+
+	/* Article content typography */
+	.article-content {
+		font-size: var(--font-size-lg);
+		line-height: var(--leading-relaxed);
+	}
+
+	.article-content :global(p) {
+		margin-bottom: 1.5em;
+	}
+
+	.article-content :global(h2) {
+		font-size: var(--font-size-2xl);
+		margin-top: 2.5em;
+		margin-bottom: 0.75em;
+		scroll-margin-top: calc(var(--shell-anchor-offset, var(--spacing-12)) + var(--spacing-4));
+	}
+
+	.article-content :global(h3) {
+		font-size: var(--font-size-xl);
+		margin-top: 2em;
+		margin-bottom: 0.5em;
+		scroll-margin-top: calc(var(--shell-anchor-offset, var(--spacing-12)) + var(--spacing-4));
+	}
+
+	.article-content :global(blockquote) {
+		margin: 2em 0;
+		padding: var(--spacing-4) var(--spacing-6);
+		border-left: 3px solid var(--color-border);
+		background: var(--color-bg-subtle);
+		border-radius: 0 var(--radius) var(--radius) 0;
+		color: var(--color-text-secondary);
+		font-style: italic;
+	}
+
+	/*
+	 * 代码块的几何与字体由 CodeBlock.astro 负责（含 Shiki 行内明暗配色），
+	 * 页面不再重复声明 pre 规则，避免特异性相同的两份样式互相覆盖。
+	 */
+	.article-content :global(code) {
+		font-family: var(--font-mono);
+		font-size: 0.9em;
+		background: var(--color-surface);
+		padding: 0.2em 0.4em;
+		border-radius: var(--radius);
+	}
+
+	.article-content :global(pre code) {
+		background: none;
+		padding: 0;
+	}
+
+	.article-content :global(ul),
+	.article-content :global(ol) {
+		margin-bottom: 1.5em;
+		padding-left: 1.5em;
+	}
+
+	.article-content :global(li) {
+		margin-bottom: 0.5em;
+	}
+
+	.article-content :global(img) {
+		margin: 2em 0;
+		border-radius: var(--radius-lg);
+	}
+
+	.article-content :global(hr) {
+		margin: 3em 0;
+		border: none;
+		border-top: 1px solid var(--color-border);
+	}
+
+	.article-content :global(a) {
+		color: var(--color-brand);
+		text-decoration: underline;
+		text-underline-offset: 3px;
+		text-decoration-thickness: 1px;
+	}
+
+	.article-content :global(a:hover) {
+		text-decoration-thickness: 2px;
+	}
+
+	/* Comments section */
+	.article-comments {
+		margin-top: var(--spacing-16);
+		padding-top: var(--spacing-10);
+		border-top: 1px solid var(--color-border);
+	}
+
+	.article-comments :global(.ec-comments) {
+		--ec-comment-border: 1px solid var(--color-border);
+	}
+
+	.article-comments :global(.ec-comments-heading) {
+		font-size: var(--font-size-2xl);
+		font-weight: var(--font-weight-heading);
+		margin-bottom: var(--spacing-8);
+	}
+
+	.article-comments :global(.ec-comment-author) {
+		color: var(--color-text);
+	}
+
+	.article-comments :global(.ec-comment-date) {
+		font-family: var(--font-mono);
+		color: var(--color-muted);
+	}
+
+	.article-comments :global(.ec-comment-body) {
+		color: var(--color-text);
+	}
+
+	.article-comments :global(.ec-comment-form-field input),
+	.article-comments :global(.ec-comment-form-field textarea) {
+		background: var(--color-surface) !important;
+		border-color: var(--color-border) !important;
+		color: var(--color-text) !important;
+	}
+
+	.article-comments :global(.ec-comment-user-info) {
+		background: var(--color-surface) !important;
+		border-color: var(--color-border) !important;
+	}
+
+	.article-comments :global(.ec-comment-form-submit) {
+		background: var(--color-brand) !important;
+		color: var(--color-on-brand) !important;
+	}
+
+	/* Responsive —— 列数由 Base.astro 的外壳决定，这里只调文章自身。 */
+	@media (max-width: 600px) {
+		.article-title {
+			font-size: var(--font-size-3xl);
+		}
+
+		.article-hero {
+			margin-bottom: var(--spacing-8);
+			border-radius: var(--radius);
+		}
+	}
+</style>

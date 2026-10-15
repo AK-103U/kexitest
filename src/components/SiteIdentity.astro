@@ -1,0 +1,107 @@
+---
+/**
+ * 站主身份：头像 + 名字，作为侧栏品牌入口，也在窄屏顶部栏中保留。
+ *
+ * 两者横向排列并共用一条基线；长署名在左栏内截断，不溢入正文列。极窄屏
+ * 由外壳隐藏名字、保留头像，给搜索输入框留出空间。
+ *
+ * 没有头像时回退到内置的默认标志 `public/logo.webp`，
+ * 站主可在后台为署名上传头像后自动切换。
+ */
+import { avatarUrl } from "../utils/media";
+
+interface Props {
+	displayName: string;
+	avatarStorageKey?: string | null;
+	avatarAlt?: string | null;
+	/** 点击去向，通常是本站首页。 */
+	href: string;
+	class?: string;
+}
+
+const { displayName, avatarStorageKey, avatarAlt, href, class: className } = Astro.props;
+
+// 有署名头像就用服务端裁剪后的 URL；否则回退到内置默认标志。
+const DEFAULT_AVATAR_SRC = "/logo.webp";
+const avatarSrc = avatarStorageKey ? avatarUrl(avatarStorageKey, 96) : DEFAULT_AVATAR_SRC;
+---
+
+<a class:list={["site-identity", className]} href={href}>
+	<img
+		class="site-identity-avatar"
+		src={avatarSrc}
+		alt={avatarAlt || displayName}
+		width="52"
+		height="52"
+		loading="eager"
+	/>
+	<span class="site-identity-name">{displayName}</span>
+</a>
+
+<style>
+	.site-identity {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+		gap: var(--spacing-2);
+		width: 100%;
+		min-width: 0;
+		color: var(--color-text);
+		text-decoration: none;
+	}
+
+	/* 桌面端大头像在上、居中对齐 */
+	.site-identity-avatar {
+		width: 52px;
+		height: 52px;
+		border-radius: 50%;
+		object-fit: cover;
+		flex-shrink: 0;
+		background: var(--color-surface);
+		transition: transform var(--transition-fast);
+	}
+
+	.site-identity:hover .site-identity-avatar {
+		transform: scale(1.04);
+	}
+
+	.site-identity-name {
+		min-width: 0;
+		max-width: 100%;
+		text-align: center;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		font-size: var(--font-size-base);
+		font-weight: 600;
+		letter-spacing: var(--tracking-snug);
+		line-height: var(--leading-snug);
+		white-space: nowrap;
+		transition: color var(--transition-fast);
+	}
+
+	.site-identity:hover .site-identity-name {
+		color: var(--color-brand);
+	}
+
+	@media (max-width: 999px) {
+		.site-identity {
+			flex-direction: row;
+			align-items: center;
+			justify-content: flex-start;
+			text-align: left;
+			gap: var(--spacing-2);
+		}
+
+		.site-identity-avatar {
+			width: var(--avatar-size-md);
+			height: var(--avatar-size-md);
+		}
+
+		.site-identity-name {
+			font-size: var(--font-size-sm);
+			text-align: left;
+		}
+	}
+</style>

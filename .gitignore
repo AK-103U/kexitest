@@ -1,0 +1,20 @@
+node_modules
+dist
+.astro
+.emdash/migrations.json
+.wrangler
+# 旧 Node/SQLite 线路的本地产物（迁移到 Cloudflare 后不再使用）
+uploads
+data.db*
+# 重建数据库时导出的临时内容 / 备份
+.tmp-i18n/
+
+# 截图产物，用 `node scripts/shots.mjs` 重新生成
+shots/
+
+# Environment / Wrangler secrets
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*

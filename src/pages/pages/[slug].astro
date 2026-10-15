@@ -1,0 +1,156 @@
+---
+import {
+	getEmDashEntry,
+	getSeoMeta,
+	decodeSlug,
+	getSiteSettings,
+} from "emdash";
+import { PortableText } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+import CodeBlock from "../../components/CodeBlock.astro";
+import { resolveBlogSiteIdentity } from "../../utils/site-identity";
+import { siteConfig } from "../../i18n/config";
+import { pageLang, useTranslations } from "../../i18n/ui";
+
+interface Props {
+	locale?: string;
+}
+
+const lang = pageLang(Astro.props, Astro);
+const t = useTranslations(lang);
+
+const slug = decodeSlug(Astro.params.slug);
+
+if (!slug) {
+	return Astro.redirect("/404");
+}
+
+// 同 posts/[slug]：默认语言缺翻译时手动回退到英文。
+const primary = await getEmDashEntry("pages", slug, { locale: lang });
+const secondary =
+	!primary.entry && lang === siteConfig.defaultLocale
+		? await getEmDashEntry("pages", slug, { locale: "en" })
+		: null;
+
+const page = primary.entry ?? secondary?.entry ?? null;
+
+if (!page) {
+	return Astro.redirect("/404");
+}
+
+const cacheHint =
+	page === primary.entry
+		? primary.cacheHint
+		: (secondary?.cacheHint ?? primary.cacheHint);
+/** 非空表示当前显示的是另一语言的内容，用于渲染提示条。 */
+const fallbackLocale =
+	page === primary.entry ? primary.fallbackLocale : "en";
+
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+const { siteTitle } = resolveBlogSiteIdentity(await getSiteSettings());
+const seo = getSeoMeta(page, {
+	siteTitle,
+	siteUrl: Astro.url.origin,
+	path: Astro.url.pathname.replace(/\/$/, ""),
+});
+---
+
+<Base
+	lang={lang}
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description}
+	canonical={seo.canonical}
+	robots={seo.robots}
+	content={{ collection: "pages", id: page.data.id, slug }}
+>
+	<article class="page-article">
+		<header class="page-header">
+			<h1 class="page-title" {...page.edit.title}>{page.data.title}</h1>
+			{
+				fallbackLocale && (
+					<p class="page-fallback-notice">{t("page.translatedNotice")}</p>
+				)
+			}
+		</header>
+
+		<div class="page-content" {...page.edit.content}>
+			<PortableText
+				value={page.data.content}
+				components={{ type: { code: CodeBlock } }}
+			/>
+		</div>
+	</article>
+</Base>
+
+<style>
+	/* 列宽由 Base.astro 的三栏外壳接管 */
+	.page-article {
+		min-width: 0;
+	}
+
+	.page-header {
+		margin-bottom: var(--spacing-8);
+	}
+
+	.page-title {
+		font-size: clamp(var(--font-size-2xl), 4vw, var(--font-size-4xl));
+		font-weight: var(--font-weight-display);
+		line-height: var(--leading-tight);
+	}
+
+	/* 当前显示的是回退语言的原文时，给出提示（与文章页一致） */
+	.page-fallback-notice {
+		margin-top: var(--spacing-4);
+		font-size: var(--font-size-sm);
+		color: var(--color-muted);
+		font-style: italic;
+	}
+
+	.page-content :global(p) {
+		margin-bottom: 1.5em;
+	}
+
+	.page-content :global(h2) {
+		font-size: var(--font-size-2xl);
+		margin-top: 2em;
+		margin-bottom: 0.75em;
+	}
+
+	.page-content :global(h3) {
+		font-size: var(--font-size-xl);
+		margin-top: 1.75em;
+		margin-bottom: 0.5em;
+	}
+
+	.page-content :global(blockquote) {
+		margin: 1.5em 0;
+		padding-left: var(--spacing-6);
+		border-left: 3px solid var(--color-border);
+		color: var(--color-muted);
+	}
+
+	/* 代码块的几何与字体由 CodeBlock.astro 负责，页面只处理行内 code。 */
+	.page-content :global(code) {
+		font-family: var(--font-mono);
+		font-size: 0.9em;
+		background: var(--color-surface);
+		padding: 0.15em 0.3em;
+		border-radius: var(--radius);
+	}
+
+	.page-content :global(pre code) {
+		background: none;
+		padding: 0;
+	}
+
+	.page-content :global(ul),
+	.page-content :global(ol) {
+		margin-bottom: 1.5em;
+		padding-left: var(--spacing-5);
+	}
+
+	.page-content :global(li) {
+		margin-bottom: 0.5em;
+	}
+</style>

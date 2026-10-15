@@ -1,0 +1,384 @@
+{
+	"$schema": "https://emdashcms.com/seed.schema.json",
+	"version": "1",
+	"defaultLocale": "zh",
+	"meta": {
+		"name": "Kexi",
+		"description": "A modern blog theme built for Astro and EmDash",
+		"author": "EmDash"
+	},
+	"settings": {
+		"title": "Kexi",
+		"tagline": ""
+	},
+	"collections": [
+		{
+			"slug": "posts",
+			"label": "Posts",
+			"labelSingular": "Post",
+			"urlPattern": "/posts/{slug}",
+			"supports": [
+				"drafts",
+				"revisions",
+				"preview",
+				"scheduling",
+				"search",
+				"seo"
+			],
+			"commentsEnabled": true,
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "featured_image",
+					"label": "Featured Image",
+					"type": "image"
+				},
+				{
+					"slug": "content",
+					"label": "Content",
+					"type": "portableText",
+					"searchable": true
+				},
+				{
+					"slug": "excerpt",
+					"label": "Excerpt",
+					"type": "text"
+				}
+			]
+		},
+		{
+			"slug": "pages",
+			"label": "Pages",
+			"labelSingular": "Page",
+			"urlPattern": "/pages/{slug}",
+			"supports": [
+				"drafts",
+				"revisions",
+				"preview",
+				"search",
+				"seo"
+			],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "content",
+					"label": "Content",
+					"type": "portableText",
+					"searchable": true
+				}
+			]
+		}
+	],
+	"taxonomies": [
+		{
+			"id": "tax:category:zh",
+			"name": "category",
+			"label": "分类",
+			"labelSingular": "分类",
+			"hierarchical": true,
+			"collections": [
+				"posts"
+			],
+			"locale": "zh",
+			"terms": [
+				{
+					"id": "term:category:development:zh",
+					"slug": "development",
+					"label": "开发",
+					"locale": "zh"
+				},
+				{
+					"id": "term:category:design:zh",
+					"slug": "design",
+					"label": "设计",
+					"locale": "zh"
+				},
+				{
+					"id": "term:category:notes:zh",
+					"slug": "notes",
+					"label": "随笔",
+					"locale": "zh"
+				}
+			]
+		},
+		{
+			"id": "tax:category:en",
+			"name": "category",
+			"label": "Categories",
+			"labelSingular": "Category",
+			"hierarchical": true,
+			"collections": [
+				"posts"
+			],
+			"locale": "en",
+			"translationOf": "tax:category:zh",
+			"terms": [
+				{
+					"id": "term:category:development:en",
+					"slug": "development",
+					"label": "Development",
+					"locale": "en",
+					"translationOf": "term:category:development:zh"
+				},
+				{
+					"id": "term:category:design:en",
+					"slug": "design",
+					"label": "Design",
+					"locale": "en",
+					"translationOf": "term:category:design:zh"
+				},
+				{
+					"id": "term:category:notes:en",
+					"slug": "notes",
+					"label": "Notes",
+					"locale": "en",
+					"translationOf": "term:category:notes:zh"
+				}
+			]
+		},
+		{
+			"id": "tax:tag:zh",
+			"name": "tag",
+			"label": "标签",
+			"labelSingular": "标签",
+			"hierarchical": false,
+			"collections": [
+				"posts"
+			],
+			"locale": "zh",
+			"terms": [
+				{
+					"id": "term:tag:webdev:zh",
+					"slug": "webdev",
+					"label": "Web 开发",
+					"locale": "zh"
+				},
+				{
+					"id": "term:tag:opinion:zh",
+					"slug": "opinion",
+					"label": "观点",
+					"locale": "zh"
+				},
+				{
+					"id": "term:tag:tools:zh",
+					"slug": "tools",
+					"label": "工具",
+					"locale": "zh"
+				},
+				{
+					"id": "term:tag:creativity:zh",
+					"slug": "creativity",
+					"label": "创意",
+					"locale": "zh"
+				}
+			]
+		},
+		{
+			"id": "tax:tag:en",
+			"name": "tag",
+			"label": "Tags",
+			"labelSingular": "Tag",
+			"hierarchical": false,
+			"collections": [
+				"posts"
+			],
+			"locale": "en",
+			"translationOf": "tax:tag:zh",
+			"terms": [
+				{
+					"id": "term:tag:webdev:en",
+					"slug": "webdev",
+					"label": "Web Development",
+					"locale": "en",
+					"translationOf": "term:tag:webdev:zh"
+				},
+				{
+					"id": "term:tag:opinion:en",
+					"slug": "opinion",
+					"label": "Opinion",
+					"locale": "en",
+					"translationOf": "term:tag:opinion:zh"
+				},
+				{
+					"id": "term:tag:tools:en",
+					"slug": "tools",
+					"label": "Tools",
+					"locale": "en",
+					"translationOf": "term:tag:tools:zh"
+				},
+				{
+					"id": "term:tag:creativity:en",
+					"slug": "creativity",
+					"label": "Creativity",
+					"locale": "en",
+					"translationOf": "term:tag:creativity:zh"
+				}
+			]
+		}
+	],
+	"bylines": [
+		{
+			"id": "byline-editorial",
+			"slug": "emdash-editorial",
+			"displayName": "Kexi"
+		}
+	],
+	"menus": [
+		{
+			"id": "menu:primary:zh",
+			"name": "primary",
+			"label": "主导航",
+			"locale": "zh",
+			"items": [
+				{
+					"type": "custom",
+					"label": "首页",
+					"url": "/"
+				},
+				{
+					"type": "custom",
+					"label": "文章",
+					"url": "/posts"
+				}
+			]
+		},
+		{
+			"id": "menu:primary:en",
+			"name": "primary",
+			"label": "Primary Navigation",
+			"locale": "en",
+			"translationOf": "menu:primary:zh",
+			"items": [
+				{
+					"type": "custom",
+					"label": "Home",
+					"url": "/en"
+				},
+				{
+					"type": "custom",
+					"label": "Posts",
+					"url": "/en/posts"
+				}
+			]
+		}
+	],
+	"widgetAreas": [
+		{
+			"name": "sidebar",
+			"label": "Sidebar",
+			"description": "Widget area displayed on single post pages",
+			"widgets": [
+				{
+					"type": "component",
+					"componentId": "core:search",
+					"title": "Search"
+				},
+				{
+					"type": "component",
+					"componentId": "core:categories",
+					"title": "Categories"
+				},
+				{
+					"type": "component",
+					"componentId": "core:tags",
+					"title": "Tags"
+				},
+				{
+					"type": "component",
+					"componentId": "core:recent-posts",
+					"title": "Recent Posts",
+					"props": {
+						"count": 5,
+						"showDate": true
+					}
+				},
+				{
+					"type": "component",
+					"componentId": "core:archives",
+					"title": "Archives",
+					"props": {
+						"type": "monthly",
+						"limit": 6
+					}
+				}
+			]
+		}
+	],
+	"sections": [
+		{
+			"slug": "newsletter-signup",
+			"title": "Newsletter Signup",
+			"description": "A call-to-action block for newsletter subscriptions",
+			"keywords": [
+				"newsletter",
+				"subscribe",
+				"email",
+				"cta"
+			],
+			"source": "theme",
+			"content": [
+				{
+					"_type": "block",
+					"style": "h3",
+					"children": [
+						{
+							"_type": "span",
+							"text": "Stay in the loop",
+							"_key": "k1"
+						}
+					],
+					"_key": "k0"
+				},
+				{
+					"_type": "block",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"text": "Get notified when new posts are published. No spam, unsubscribe anytime.",
+							"_key": "k3"
+						}
+					],
+					"_key": "k2"
+				}
+			]
+		},
+		{
+			"slug": "about-author",
+			"title": "About the Author",
+			"description": "Brief author bio for use in posts or pages",
+			"keywords": [
+				"author",
+				"bio",
+				"about"
+			],
+			"source": "theme",
+			"content": [
+				{
+					"_type": "block",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"text": "A software developer who writes about building things on the web. Based somewhere with good coffee and reliable internet.",
+							"_key": "k1"
+						}
+					],
+					"_key": "k0"
+				}
+			]
+		}
+	]
+}

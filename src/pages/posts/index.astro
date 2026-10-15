@@ -1,0 +1,171 @@
+---
+import { getEmDashCollection, getTermsForEntries } from "emdash";
+import Base from "../../layouts/Base.astro";
+import PostCard from "../../components/PostCard.astro";
+import { getReadingTime } from "../../utils/reading-time";
+import { resolveEntryBylines, readEntryLocale } from "../../utils/bylines";
+import { localePath, pageLang, useTranslations } from "../../i18n/ui";
+
+interface Props {
+	locale?: string;
+}
+
+const lang = pageLang(Astro.props, Astro);
+const t = useTranslations(lang);
+
+// Sort in the database rather than in JS — lets the DB use its index on
+// published_at and avoids a full-table scan on the client.
+const cursor = Astro.url.searchParams.get("cursor") || undefined;
+const {
+	entries: posts,
+	cacheHint,
+	nextCursor,
+} = await getEmDashCollection("posts", {
+	locale: lang,
+	orderBy: { published_at: "desc" },
+	limit: 20,
+	cursor,
+});
+
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
+// Single batched query for tags across all posts, instead of one
+// getEntryTerms() call per post (which would be N round-trips).
+// Bylines are already hydrated on entry.data.bylines.
+const tagsByEntry = await getTermsForEntries(
+	"posts",
+	posts.map((p) => p.data.id),
+	"tag",
+	{ locale: lang },
+);
+
+// 署名回退：非默认语言下补齐缺失语言行的人名与头像（见 utils/bylines.ts）。
+const bylinesByEntry = await resolveEntryBylines(
+	"posts",
+	posts.map((post) => ({
+		id: post.data.id,
+		locale: readEntryLocale(post.data, lang),
+		bylines: post.data.bylines ?? [],
+	})),
+);
+
+const postsWithTags = posts.map((post) => ({
+	post,
+	tags: tagsByEntry.get(post.data.id) ?? [],
+	bylines: bylinesByEntry.get(post.data.id) ?? [],
+}));
+---
+
+<Base lang={lang} title={t("posts.title")} description={t("posts.description")}>
+	<div class="posts-page">
+		<header class="page-header">
+			<h1 class="page-title">{t("posts.title")}</h1>
+			<p class="page-description">
+				{posts.length === 1
+					? t("posts.countOne", { n: posts.length })
+					: t("posts.count", { n: posts.length })}
+			</p>
+		</header>
+
+		{
+			posts.length === 0 ? (
+				<p class="empty">{t("posts.empty")}</p>
+			) : (
+				<div class="posts-list">
+					{postsWithTags.map(({ post, tags, bylines }) => (
+						<PostCard
+							lang={lang}
+							title={post.data.title ?? t("common.untitled")}
+							featuredImage={post.data.featured_image}
+							href={localePath(lang, `/posts/${post.data.slug}`)}
+							date={post.data.publishedAt ?? undefined}
+							readingTime={getReadingTime(post.data.content)}
+							tags={tags.map((t) => ({ slug: t.slug, label: t.label }))}
+							bylines={bylines}
+							edit={post.edit}
+						/>
+					))}
+				</div>
+			)
+		}
+		<nav class="pagination" aria-label={t("common.pagination")}>
+			{cursor && <a href={localePath(lang, "/posts")}>{t("posts.firstPage")}</a>}
+			{
+				nextCursor && (
+					<a
+						href={`${localePath(lang, "/posts")}?cursor=${encodeURIComponent(nextCursor)}`}
+					>
+						{t("posts.nextPage")}
+					</a>
+				)
+			}
+		</nav>
+	</div>
+</Base>
+
+<style>
+	/* 列宽由 Base.astro 的三栏外壳接管 */
+	.posts-page {
+		min-width: 0;
+	}
+
+	.page-header {
+		margin-bottom: var(--spacing-12);
+	}
+
+	.page-title {
+		font-size: var(--font-size-4xl);
+		font-weight: var(--font-weight-display);
+		letter-spacing: var(--tracking-tight);
+		margin-bottom: var(--spacing-2);
+	}
+
+	.page-description {
+		font-size: var(--font-size-lg);
+		color: var(--color-muted);
+	}
+
+	.empty {
+		color: var(--color-muted);
+		font-size: var(--font-size-lg);
+	}
+
+	.posts-list {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.pagination {
+		display: flex;
+		justify-content: center;
+		gap: var(--spacing-4);
+		margin-top: var(--spacing-12);
+	}
+
+	.pagination a {
+		padding: var(--spacing-2) var(--spacing-4);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+		color: var(--color-text);
+		text-decoration: none;
+		font-size: var(--font-size-sm);
+		transition:
+			border-color var(--transition-fast),
+			color var(--transition-fast);
+	}
+
+	.pagination a:hover {
+		border-color: var(--color-brand);
+		color: var(--color-brand);
+	}
+
+	@media (max-width: 600px) {
+		.posts-page {
+			padding: var(--spacing-6) var(--spacing-4) var(--spacing-12);
+		}
+
+		.page-title {
+			font-size: var(--font-size-3xl);
+		}
+	}
+</style>

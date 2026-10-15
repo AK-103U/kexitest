@@ -1,0 +1,206 @@
+/*
+  theme.css -- your theme overrides. This is the file to edit to
+  retheme the site.
+
+  Every design token lives in src/styles/tokens.css (colors, type
+  scale, spacing, layout, shadows) with its default value. Override any
+  of them here: declarations in this file are unlayered, so they always
+  beat the @layer base defaults in tokens.css.
+
+  Colors are defined with light-dark(). Overriding with a plain color
+  changes light and dark mode at once; use light-dark(<light>, <dark>)
+  to set different values per mode.
+
+  Webfonts are loaded in astro.config.mjs (--font-body, --font-mono).
+  Swap the loaded font there; use overrides here for system fonts or a
+  separate heading face.
+
+  Example:
+
+  :root {
+    --color-brand: light-dark(#0f766e, #2dd4bf);
+    --font-heading: "Iowan Old Style", Georgia, serif;
+    --radius: 8px;
+  }
+*/
+
+:root {
+	/*
+	 * 柑橘橙主题 —— 主色 #E86233。
+	 * 三件套必须一起改：brand 是链接/焦点环，brand-hover 是悬停态，
+	 * on-brand 是叠在 brand 底色之上的文字色。
+	 * 用 light-dark() 才能让两种模式各自取值；写普通颜色会同时改掉两边。
+	 */
+	--color-brand: light-dark(#e86233, #db7753);
+	--color-brand-hover: light-dark(#c94f22, #e28969);
+	--color-on-brand: white;
+	--color-brand-ring: color-mix(in srgb, var(--color-brand) 25%, transparent);
+
+	/* 圆角整体调大，卡片和搜索框会更柔和 */
+	--radius: 8px;
+	--radius-lg: 14px;
+
+	/*
+	 * 标题字重。只加载了 400/500/600/700 四个离散字重（见 astro.config.mjs
+	 * 的 fonts.weights），所以这里只能用这四个值之一 —— 写 650 不会报错，
+	 * 但浏览器会就近取整，等于白写。
+	 */
+	--font-weight-heading: 600;
+	--font-weight-display: 600;
+}
+
+/* 中文页面使用 Lato 字体栈，并保留自然字距；Lato 不含中文字形，汉字回退到系统字体。 */
+html[lang^="zh"] {
+	--font-body: var(--font-lato);
+	--font-heading: var(--font-lato);
+	--tracking-tight: normal;
+	--tracking-snug: normal;
+}
+
+/*
+ * 中文文章试用参考博客的排印尺度，但保留 Base 外壳提供的正文宽度；
+ * H2/H3 不复用参考站依赖卡片内边距的外扩，留在 Kexi 正文栏内。
+ * 英文页面保留 Kexi 当前参数。
+ */
+html[lang^="zh"] :is(.article-title, .page-title) {
+	font-size: 24px;
+	line-height: 1.15;
+}
+
+html[lang^="zh"] :is(.article-content, .page-content) {
+	font-size: 17px;
+	line-height: 1.85;
+}
+
+html[lang^="zh"] :is(.article-content, .page-content) p {
+	margin-block: 1.5em;
+}
+
+html[lang^="zh"] :is(.article-content, .page-content) h2 {
+	font-size: 1.5em;
+	line-height: 1.85;
+	margin-block: 0.83em;
+}
+
+html[lang^="zh"] :is(.article-content, .page-content) h3 {
+	font-size: 1.17em;
+	line-height: 1.85;
+	margin-block: 1em;
+}
+
+/* 标题文本与正文左边界对齐；色条锚在标题前方的留白中，靠近正文，不贴侧栏分隔线。 */
+html[lang^="zh"] :is(.article-content, .page-content) :is(h2, h3) {
+	position: relative;
+}
+
+html[lang^="zh"] :is(.article-content, .page-content) :is(h2, h3)::before {
+	position: absolute;
+	inset-inline-start: calc(-0.5em - 2.5px);
+	top: 0.35em;
+	width: 5px;
+	height: 1.16em;
+	border-radius: 999px;
+	background: var(--color-brand);
+	content: "";
+}
+
+/* 移动端没有侧栏分隔线时，将色条放到内容左侧的外边距中。 */
+@media (max-width: 999px) {
+	html[lang^="zh"] :is(.article-content, .page-content) :is(h2, h3)::before {
+		inset-inline-start: -0.45em;
+	}
+}
+
+html[lang^="zh"] :is(.article-content, .page-content) blockquote {
+	margin-block: 1.5em;
+	font-style: normal;
+}
+
+@media (min-width: 700px) {
+	html[lang^="zh"] :is(.article-content, .page-content) blockquote {
+		margin-inline: -30px;
+	}
+}
+
+/*
+ * 中文正文里，EmDash 隔离 HTML 块通过 iframe 自适应高度。浏览器初始高度为
+ * 150px，而短内容的测量高度可能更小；保留这个最小高度，避免首次测量时页面跳动。
+ * 内容较长时仍由 EmDash 的高度同步逻辑继续扩展。英文保留 EmDash 默认样式。
+ */
+html[lang^="zh"] iframe.emdash-html-block {
+	min-height: 150px;
+}
+
+/*
+ * 中文文章与页面中，紧邻 Markdown 段落的普通 HTML 块按正文行距衔接：清除块
+ * 两端和相邻 Markdown 块的额外段距。英文继续使用 EmDash 默认间距；HTML 块
+ * 内部多个段落仍保留正文段落间距。
+ */
+html[lang^="zh"] .article-content .emdash-html-block,
+html[lang^="zh"] .page-content .emdash-html-block {
+	margin: 0;
+}
+
+html[lang^="zh"] article .article-content :is(p, ul, ol, blockquote):has(+ .emdash-html-block),
+html[lang^="zh"] article .page-content :is(p, ul, ol, blockquote):has(+ .emdash-html-block) {
+	margin-bottom: 0;
+}
+
+html[lang^="zh"] .article-content .emdash-html-block :last-child,
+html[lang^="zh"] .page-content .emdash-html-block :last-child {
+	margin-bottom: 0;
+}
+
+/* 中文正文中显式插入的 EmDash break / HTML hr 使用居中的短分隔线。 */
+html[lang^="zh"] :is(.article-content, .page-content) hr {
+	width: 100px;
+	height: 2px;
+	margin: 40px auto;
+	border: 0;
+	background: var(--color-text-secondary);
+	opacity: 0.55;
+}
+
+/*
+ * 文章与页面正文表格样式 (Responsive Tables)
+ */
+:is(.article-content, .page-content) .table-wrapper,
+:is(.article-content, .page-content) .emdash-table-wrapper {
+	max-width: 100%;
+	margin: var(--spacing-6) 0;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+	border-radius: var(--radius);
+	border: 1px solid var(--color-border-subtle);
+}
+
+:is(.article-content, .page-content) table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--font-size-sm);
+	line-height: var(--leading-normal);
+	text-align: left;
+	background: var(--color-bg);
+}
+
+:is(.article-content, .page-content) :is(th, td) {
+	padding: var(--spacing-3) var(--spacing-4);
+	border-bottom: 1px solid var(--color-border-subtle);
+	vertical-align: top;
+}
+
+:is(.article-content, .page-content) th {
+	font-weight: 600;
+	color: var(--color-text);
+	background: var(--color-surface);
+	white-space: nowrap;
+}
+
+:is(.article-content, .page-content) tr:last-child td {
+	border-bottom: none;
+}
+
+:is(.article-content, .page-content) tbody tr:hover {
+	background: color-mix(in srgb, var(--color-surface) 60%, transparent);
+}
+

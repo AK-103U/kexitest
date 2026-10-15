@@ -1,0 +1,324 @@
+---
+import type { ContentBylineCredit, EditProxy, MediaValue } from "emdash";
+import { Image } from "emdash/ui";
+import { formatDate, localePath, useTranslations, type Lang } from "../i18n/ui";
+import { avatarUrl } from "../utils/media";
+
+interface Props {
+	lang: Lang;
+	title: string;
+	featuredImage?: MediaValue | string;
+	href: string;
+	date?: Date;
+	readingTime?: number;
+	tags?: Array<{ slug: string; label: string }>;
+	bylines?: ContentBylineCredit[];
+	edit?: EditProxy;
+}
+
+const {
+	lang,
+	title,
+	featuredImage,
+	href,
+	date,
+	readingTime,
+	tags,
+	bylines,
+	edit,
+} = Astro.props;
+
+const t = useTranslations(lang);
+
+const formattedDate = date ? formatDate(date, lang, "long") : null;
+---
+
+<article class="post-item">
+	<div class="post-content">
+		<a href={href} class="post-title-link">
+			<h2 class="post-title" {...edit?.title}>{title}</h2>
+		</a>
+
+		<div class="post-details">
+			<div class="post-meta">
+				{
+					bylines && bylines.length > 0 && (
+						<>
+							<div class="post-bylines">
+								{bylines.slice(0, 2).map((credit, index) => (
+									<>
+										{index > 0 && <span class="byline-sep">,</span>}
+										<span class="post-byline">
+											{credit.byline.avatarStorageKey && (
+												<img
+													src={avatarUrl(credit.byline.avatarStorageKey, 96)}
+													alt={credit.byline.displayName}
+													class="post-byline-avatar"
+												/>
+											)}
+											<span class="post-byline-name">
+												{credit.byline.displayName}
+											</span>
+										</span>
+									</>
+								))}
+								{bylines.length > 2 && (
+									<span
+										class="byline-more"
+										data-tooltip={bylines
+											.slice(2)
+											.map((c) => c.byline.displayName)
+											.join(", ")}
+										title={bylines
+											.slice(2)
+											.map((c) => c.byline.displayName)
+											.join(", ")}
+										tabindex="0"
+									>
+										+{bylines.length - 2}
+									</span>
+								)}
+							</div>
+							<span class="meta-dot" />
+						</>
+					)
+				}
+				{formattedDate && <time>{formattedDate}</time>}
+				{formattedDate && readingTime && <span class="meta-dot" />}
+				{readingTime && <span>{t("post.minRead", { n: readingTime })}</span>}
+			</div>
+
+			{
+				tags && tags.length > 0 && (
+					<div class="post-tags">
+						{tags.slice(0, 3).map((tag) => (
+							<a href={localePath(lang, `/tag/${tag.slug}`)} class="post-tag">
+								{tag.label}
+							</a>
+						))}
+					</div>
+				)
+			}
+		</div>
+	</div>
+
+	{
+		featuredImage && (
+			<a
+				href={href}
+				class="post-thumbnail-link"
+				tabindex="-1"
+				aria-hidden="true"
+				{...edit?.featured_image}
+			>
+				<div class="post-thumbnail">
+					<Image image={featuredImage} />
+				</div>
+			</a>
+		)
+	}
+</article>
+
+<style>
+	.post-item {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: var(--spacing-6);
+		padding: var(--spacing-8) 0;
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+
+	.post-item:first-child {
+		padding-top: 0;
+	}
+
+	.post-item:last-child {
+		border-bottom: none;
+	}
+
+	.post-content {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.post-title-link {
+		display: block;
+		text-decoration: none;
+		color: inherit;
+	}
+
+	.post-title {
+		font-size: var(--font-size-2xl);
+		font-weight: var(--font-weight-heading);
+		line-height: var(--leading-snug);
+		letter-spacing: var(--tracking-snug);
+		margin-bottom: var(--spacing-3);
+		transition: color var(--transition-fast);
+	}
+
+	.post-title-link:hover .post-title {
+		color: var(--color-brand);
+	}
+
+	.post-details {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		column-gap: var(--spacing-3);
+		row-gap: var(--spacing-2);
+	}
+
+	.post-meta {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: var(--spacing-3);
+		font-size: var(--font-size-sm);
+		color: var(--color-muted);
+	}
+
+	.post-meta time,
+	.post-meta span:not(.meta-dot):not(.post-byline-name) {
+		white-space: nowrap;
+	}
+
+	.meta-dot {
+		width: 3px;
+		height: 3px;
+		border-radius: 50%;
+		background: var(--color-muted);
+	}
+
+	/* Bylines */
+	.post-bylines {
+		display: flex;
+		align-items: center;
+		gap: 2px;
+		white-space: nowrap;
+	}
+
+	.post-byline {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-1);
+	}
+
+	.post-byline-avatar {
+		width: var(--avatar-size-sm);
+		height: var(--avatar-size-sm);
+		border-radius: 50%;
+		object-fit: contain;
+	}
+
+	.post-byline-name {
+		font-weight: 500;
+		color: var(--color-text-secondary);
+	}
+
+	.byline-sep {
+		color: var(--color-muted);
+		margin-right: 2px;
+	}
+
+	.byline-more {
+		position: relative;
+		font-size: var(--font-size-xs);
+		color: var(--color-muted);
+		margin-left: 2px;
+		cursor: default;
+		border-radius: var(--radius);
+		outline-offset: 2px;
+	}
+
+	.byline-more:focus-visible {
+		outline: 2px solid var(--color-brand);
+	}
+
+	.byline-more[data-tooltip]:hover::after,
+	.byline-more[data-tooltip]:focus-visible::after {
+		content: attr(data-tooltip);
+		position: absolute;
+		bottom: calc(100% + 6px);
+		left: 50%;
+		transform: translateX(-50%);
+		white-space: nowrap;
+		background: var(--color-text);
+		color: var(--color-bg);
+		font-size: var(--font-size-xs);
+		font-weight: 400;
+		padding: var(--spacing-1) var(--spacing-2);
+		border-radius: var(--radius);
+		pointer-events: none;
+		z-index: 10;
+	}
+
+	/* Tags */
+	.post-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+	}
+
+	.post-tag {
+		display: inline-block;
+		padding: var(--tag-padding-y) var(--spacing-2);
+		font-size: var(--font-size-xs);
+		color: var(--color-text-secondary);
+		background: var(--color-surface);
+		border-radius: var(--radius);
+		text-decoration: none;
+		transition:
+			color var(--transition-fast),
+			background var(--transition-fast);
+	}
+
+	.post-tag:hover {
+		color: var(--color-text);
+		background: var(--color-border);
+	}
+
+	/* Thumbnail */
+	.post-thumbnail-link {
+		flex-shrink: 0;
+		display: block;
+		text-decoration: none;
+	}
+
+	.post-thumbnail {
+		width: 144px;
+		aspect-ratio: 16 / 10;
+		border-radius: var(--radius-lg);
+		overflow: hidden;
+		background: var(--color-surface);
+	}
+
+	.post-thumbnail img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		transition: transform 0.3s ease;
+	}
+
+	.post-thumbnail-link:hover .post-thumbnail img {
+		transform: scale(1.04);
+	}
+
+	/* 移动端响应式 */
+	@media (max-width: 600px) {
+		.post-item {
+			gap: var(--spacing-3);
+			padding: var(--spacing-6) 0;
+		}
+
+		.post-title {
+			font-size: var(--font-size-xl);
+			margin-bottom: var(--spacing-2);
+		}
+
+		.post-thumbnail {
+			width: 96px;
+			border-radius: var(--radius);
+		}
+	}
+</style>
